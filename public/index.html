@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoiceMemo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0f;
+      color: #f1f1f3;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .card {
+      background: #13131a;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 24px;
+      padding: 2.5rem 2rem;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 0 80px rgba(99, 102, 241, 0.08);
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      color: #71717a;
+      font-size: 0.9rem;
+      margin-bottom: 2rem;
+    }
+
+    .mic-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .mic-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 2;
+      transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+      box-shadow: 0 4px 24px rgba(99, 102, 241, 0.3);
+    }
+
+    .mic-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 32px rgba(99, 102, 241, 0.45);
+    }
+
+    .mic-btn:active {
+      transform: scale(0.97);
+    }
+
+    .mic-btn.recording {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      box-shadow: 0 4px 24px rgba(239, 68, 68, 0.4);
+    }
+
+    .mic-btn.recording:hover {
+      box-shadow: 0 4px 32px rgba(239, 68, 68, 0.55);
+    }
+
+    .mic-btn svg {
+      width: 32px;
+      height: 32px;
+      fill: currentColor;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 3px solid #ef4444;
+      opacity: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .pulse-ring.active {
+      animation: pulse-ring 1.5s ease-out infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% {
+        transform: scale(1);
+        opacity: 0.6;
+      }
+      100% {
+        transform: scale(1.7);
+        opacity: 0;
+      }
+    }
+
+    .timer {
+      font-size: 1.5rem;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: #71717a;
+      margin-bottom: 0.75rem;
+      transition: color 0.3s;
+    }
+
+    .timer.active {
+      color: #f1f1f3;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: #71717a;
+      min-height: 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .status.error {
+      color: #ef4444;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .result-area {
+      background: #1a1a24;
+      border-radius: 16px;
+      padding: 1.25rem;
+      text-align: left;
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .result-area.visible {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .result-header span {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #71717a;
+    }
+
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #f1f1f3;
+      padding: 0.35rem 0.85rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+    }
+
+    .copy-btn.copied {
+      color: #22c55e;
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .transcription-text {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #e4e4e7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .transcription-text::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .transcription-text::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .transcription-text::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+    }
+
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>VoiceMemo</h1>
+    <p class="subtitle">Aufnehmen, transkribieren, kopieren</p>
+
+    <div class="mic-wrapper">
+      <button id="recordBtn" class="mic-btn" aria-label="Aufnahme starten">
+        <svg id="micIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+        <svg id="stopIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="display:none">
+          <rect x="6" y="6" width="12" height="12" rx="2"/>
+        </svg>
+      </button>
+      <div id="pulseRing" class="pulse-ring"></div>
+    </div>
+
+    <div id="timer" class="timer">00:00</div>
+    <div id="status" class="status"></div>
+
+    <div id="resultArea" class="result-area">
+      <div class="result-header">
+        <span>Transkription</span>
+        <button id="copyBtn" class="copy-btn">Kopieren</button>
+      </div>
+      <div id="transcriptionText" class="transcription-text"></div>
+    </div>
+
+  </div>
+
+  <script>
+    const recordBtn = document.getElementById('recordBtn');
+    const micIcon = document.getElementById('micIcon');
+    const stopIcon = document.getElementById('stopIcon');
+    const pulseRing = document.getElementById('pulseRing');
+    const timerEl = document.getElementById('timer');
+    const statusEl = document.getElementById('status');
+    const resultArea = document.getElementById('resultArea');
+    const transcriptionText = document.getElementById('transcriptionText');
+    const copyBtn = document.getElementById('copyBtn');
+
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let timerInterval = null;
+    let startTime = null;
+
+    function setStatus(text, type = '') {
+      statusEl.className = 'status' + (type ? ' ' + type : '');
+      statusEl.innerHTML = text;
+    }
+
+    function updateTimer() {
+      const elapsed = Date.now() - startTime;
+      const seconds = Math.floor(elapsed / 1000);
+      const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const secs = String(seconds % 60).padStart(2, '0');
+      timerEl.textContent = `${mins}:${secs}`;
+    }
+
+    function showMicIcon() {
+      micIcon.style.display = '';
+      stopIcon.style.display = 'none';
+    }
+
+    function showStopIcon() {
+      micIcon.style.display = 'none';
+      stopIcon.style.display = '';
+    }
+
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : 'audio/webm';
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = handleRecordingComplete;
+        mediaRecorder.start();
+
+        isRecording = true;
+        recordBtn.classList.add('recording');
+        pulseRing.classList.add('active');
+        timerEl.classList.add('active');
+        showStopIcon();
+
+        startTime = Date.now();
+        timerInterval = setInterval(updateTimer, 200);
+
+        setStatus('Aufnahme läuft...');
+        resultArea.classList.remove('visible');
+      } catch (err) {
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          setStatus('Mikrofon-Zugriff verweigert. Bitte in den Browser-Einstellungen erlauben.', 'error');
+        } else {
+          setStatus('Mikrofon konnte nicht gestartet werden.', 'error');
+        }
+      }
+    }
+
+    function stopRecording() {
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+
+      mediaRecorder.stop();
+      mediaRecorder.stream.getTracks().forEach(t => t.stop());
+
+      isRecording = false;
+      recordBtn.classList.remove('recording');
+      pulseRing.classList.remove('active');
+      timerEl.classList.remove('active');
+      showMicIcon();
+
+      clearInterval(timerInterval);
+      setStatus('<span class="spinner"></span> Transkribiere...');
+    }
+
+    async function handleRecordingComplete() {
+      const mimeType = mediaRecorder.mimeType || 'audio/webm';
+      const blob = new Blob(audioChunks, { type: mimeType });
+      audioChunks = [];
+
+      if (blob.size < 1000) {
+        setStatus('Aufnahme zu kurz. Bitte erneut versuchen.', 'error');
+        return;
+      }
+
+      await transcribeAudio(blob);
+    }
+
+    async function transcribeAudio(blob) {
+      const formData = new FormData();
+      formData.append('file', blob, 'recording.webm');
+      formData.append('model_id', 'scribe_v2');
+      formData.append('language_code', 'de');
+
+      try {
+        const response = await fetch('/api/transcribe', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          setStatus(`Fehler: ${errData.error || response.statusText}`, 'error');
+          return;
+        }
+
+        const data = await response.json();
+        const text = data?.text || data?.transcription?.text || '';
+
+        if (!text) {
+          setStatus('Keine Transkription erhalten.', 'error');
+          return;
+        }
+
+        transcriptionText.textContent = text;
+        resultArea.classList.add('visible');
+        setStatus('');
+      } catch (err) {
+        setStatus('Netzwerkfehler. Bitte Verbindung prüfen.', 'error');
+      }
+    }
+
+    recordBtn.addEventListener('click', () => {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
+    });
+
+    copyBtn.addEventListener('click', () => {
+      const text = transcriptionText.textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = 'Kopiert!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Kopieren';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      }).catch(() => {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        copyBtn.textContent = 'Kopiert!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Kopieren';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      });
+    });
+
+    // Check browser support
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('Dein Browser unterstützt keine Audio-Aufnahme.', 'error');
+      recordBtn.disabled = true;
+      recordBtn.style.opacity = '0.5';
+      recordBtn.style.cursor = 'not-allowed';
+    }
+  </script>
+</body>
+</html>
